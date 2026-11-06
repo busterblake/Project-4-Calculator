@@ -1,97 +1,63 @@
-"use strict";
-
 const display = document.querySelector("#display");
-const keypad = document.querySelector(".calculator-buttons");
-const keys = new Set(Array.from(keypad.querySelectorAll("button"), (button) => button.dataset.key));
-const maxEntryDigits = 12;
+const buttons = document.querySelectorAll(".calculator-buttons button");
 
-let entry = "0";
-let total = 0;
-let operator = null;
-let replaceEntry = false;
+let firstNumber = 0;
+let operator = "";
+let newNumber = true;
 
-function calculate(left, operation, right) {
-  switch (operation) {
+function calculate(secondNumber) {
+  switch (operator) {
     case "+":
-      return left + right;
+      return firstNumber + secondNumber;
     case "-":
-      return left - right;
+      return firstNumber - secondNumber;
     case "*":
-      return left * right;
+      return firstNumber * secondNumber;
     case "/":
-      return left / right;
+      return firstNumber / secondNumber;
   }
 }
 
-function formatResult(result) {
-  if (!Number.isFinite(result)) {
-    return "Error";
-  }
-
-  const rounded = Number(result.toPrecision(maxEntryDigits));
-  const formatted = String(rounded);
-  return formatted.length > 14 ? rounded.toExponential(8) : formatted;
-}
-
-function handleOperator(key) {
-  if (entry === "Error" || (key === "=" && (!operator || replaceEntry))) {
+function pressButton(key) {
+  if (key === "C") {
+    display.value = "0";
+    firstNumber = 0;
+    operator = "";
+    newNumber = true;
     return;
   }
 
-  if (operator && !replaceEntry) {
-    total = calculate(total, operator, Number(entry));
-    entry = formatResult(total);
-  } else if (!operator && !replaceEntry) {
-    total = Number(entry);
-  }
-
-  operator = key === "=" || entry === "Error" ? null : key;
-  replaceEntry = true;
-}
-
-function pressKey(key) {
-  if (key === "Escape") {
-    entry = "0";
-    total = 0;
-    operator = null;
-    replaceEntry = false;
-  } else if (key === "Backspace") {
-    if (!replaceEntry) {
-      entry = entry.slice(0, -1) || "0";
+  if (key === "Backspace") {
+    if (!newNumber) {
+      display.value = display.value.slice(0, -1) || "0";
     }
-  } else if (/^\d$/.test(key)) {
-    if (replaceEntry || entry === "0") {
-      entry = key;
-      replaceEntry = false;
-    } else if (entry.length < maxEntryDigits) {
-      entry += key;
-    }
-  } else {
-    handleOperator(key);
+    return;
   }
 
-  display.value = entry;
+  if ("0123456789".includes(key)) {
+    if (newNumber || display.value === "0") {
+      display.value = key;
+    } else {
+      display.value += key;
+    }
+    newNumber = false;
+    return;
+  }
+
+  if (display.value === "Error" || (key === "=" && (!operator || newNumber))) {
+    return;
+  }
+
+  if (operator && !newNumber) {
+    const result = calculate(Number(display.value));
+    display.value = Number.isFinite(result) ? result : "Error";
+  }
+
+  firstNumber = Number(display.value);
+  operator = key === "=" || display.value === "Error" ? "" : key;
+  newNumber = true;
 }
 
-keypad.addEventListener("click", (event) => {
-  const button = event.target.closest("button[data-key]");
-  if (button) {
-    pressKey(button.dataset.key);
-  }
-});
-
-document.addEventListener("keydown", (event) => {
-  if (event.altKey || event.ctrlKey || event.metaKey) {
-    return;
-  }
-  // Enter should still activate the focused key when tabbing through the keypad.
-  if (event.key === "Enter" && keypad.contains(event.target)) {
-    return;
-  }
-
-  const key = event.key === "Enter" ? "=" : event.key;
-  if (keys.has(key)) {
-    event.preventDefault();
-    pressKey(key);
-  }
-});
+for (const button of buttons) {
+  button.addEventListener("click", () => pressButton(button.dataset.key));
+}
